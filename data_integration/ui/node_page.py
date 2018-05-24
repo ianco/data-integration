@@ -23,7 +23,7 @@ def node_page(path: str):
     title = [node.__class__.__name__, ' ',
              [[_.a(href=views.node_url(parent))[parent.id], ' / '] for parent in node.parents()[1:-1]],
              node.id] if node.parent else 'Data Integration'
-    return response.Response(
+    xxx = response.Response(
         title=title,
         action_buttons=action_buttons(node) if config.allow_run_from_web_ui() else [],
         html=[_.script['''
@@ -45,7 +45,9 @@ document.addEventListener('DOMContentLoaded', function() {
         css_files=[flask.url_for('data_integration.static', filename='common.css'),
                    flask.url_for('data_integration.static', filename='node-page.css'),
                    flask.url_for('data_integration.static', filename='timeline-chart.css')])
-
+    print('Generating node response page')
+    print(type(xxx))
+    return xxx
 
 @functools.singledispatch
 def node_content(_: object) -> str:
