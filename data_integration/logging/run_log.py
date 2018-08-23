@@ -67,7 +67,7 @@ class SystemStatistics(Base):
 
 class RunLogger(events.EventHandler):
     run_id: int = None
-    node_run_id: int = None
+    node_run_id: {tuple: int} = None
     node_output: {tuple: [events.Output]} = None
 
     def handle_event(self, event: events.Event):
@@ -82,13 +82,17 @@ RETURNING run_id;''', (event.node_path, event.pid, event.start_time))
                 self.run_id = cursor.fetchone()[0]
 
         elif isinstance(event, events.NodeStarted):
+            if not self.node_run_id:
+                self.node_run_id = {}
+
             with mara_db.postgresql.postgres_cursor_context(
                     'mara') as cursor:  # type: psycopg2.extensions.cursor
                 cursor.execute(f'''
 INSERT INTO data_integration_node_run (run_id, node_path, start_time, is_pipeline)
 VALUES  ({"%s, %s, %s, %s"})
 RETURNING node_run_id''', (self.run_id, event.node_path, event.start_time, event.is_pipeline))
-                self.node_run_id = cursor.fetchone()[0]
+                key = tuple(event.node_path)
+                self.node_run_id[key] = cursor.fetchone()[0]
 
         elif isinstance(event, events.Output):
             key = tuple(event.node_path)
@@ -112,16 +116,17 @@ VALUES ({"%s, %s, %s, %s, %s, %s, %s, %s, %s"})''',
                                 event.net_sent, event.cpu_usage, event.mem_usage, event.swap_usage, event.iowait))
 
         elif isinstance(event, events.NodeFinished):
+            key = tuple(event.node_path)
             with mara_db.postgresql.postgres_cursor_context(
                     'mara') as cursor:  # type: psycopg2.extensions.cursor
                 cursor.execute(f'''
 UPDATE data_integration_node_run 
 SET end_time={"%s"}, succeeded={"%s"}
-where node_run_id={"%s"}''', (event.end_time, event.succeeded, self.node_run_id))
+where node_run_id={"%s"}''', (event.end_time, event.succeeded, self.node_run_id[key]))
 
                 cursor.execute('''
 INSERT INTO data_integration_node_output (node_run_id, timestamp, message, format, is_error) 
-VALUES ''' + ','.join([cursor.mogrify('(%s,%s,%s,%s,%s)', (self.node_run_id, output_event.timestamp, output_event.message,
+VALUES ''' + ','.join([cursor.mogrify('(%s,%s,%s,%s,%s)', (self.node_run_id[key], output_event.timestamp, output_event.message,
                                                            output_event.format, output_event.is_error))
                       .decode('utf-8')
                        for output_event in self.node_output.get(tuple(event.node_path))]))
