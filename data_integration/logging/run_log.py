@@ -67,6 +67,7 @@ class SystemStatistics(Base):
 
 class RunLogger(events.EventHandler):
     run_id: int = None
+    node_run_id: int = None
     node_output: {tuple: [events.Output]} = None
 
     def handle_event(self, event: events.Event):
@@ -79,6 +80,15 @@ INSERT INTO data_integration_run (node_path, pid, start_time)
 VALUES ({"%s, %s, %s"})
 RETURNING run_id;''', (event.node_path, event.pid, event.start_time))
                 self.run_id = cursor.fetchone()[0]
+
+        elif isinstance(event, events.NodeStarted):
+            with mara_db.postgresql.postgres_cursor_context(
+                    'mara') as cursor:  # type: psycopg2.extensions.cursor
+                cursor.execute(f'''
+INSERT INTO data_integration_node_run (run_id, node_path, start_time, is_pipeline)
+VALUES  ({"%s, %s, %s, %s"})
+RETURNING node_run_id''', (self.run_id, event.node_path, event.start_time, event.is_pipeline))
+                self.node_run_id = cursor.fetchone()[0]
 
         elif isinstance(event, events.Output):
             key = tuple(event.node_path)
@@ -105,11 +115,9 @@ VALUES ({"%s, %s, %s, %s, %s, %s, %s, %s, %s"})''',
             with mara_db.postgresql.postgres_cursor_context(
                     'mara') as cursor:  # type: psycopg2.extensions.cursor
                 cursor.execute(f'''
-INSERT INTO data_integration_node_run (run_id, node_path, start_time, end_time, succeeded, is_pipeline)
-VALUES  ({"%s, %s, %s, %s, %s, %s"})
-RETURNING node_run_id''', (self.run_id, event.node_path, event.start_time, event.end_time,
-                           event.succeeded, event.is_pipeline))
-                node_run_id = cursor.fetchone()[0]
+UPDATE data_integration_node_run 
+SET end_time={"%s"}, succeeded={"%s"}
+where node_run_id={"%s}''', (event.end_time, event.succeeded, self.node_run_id))
 
                 cursor.execute('''
 INSERT INTO data_integration_node_output (node_run_id, timestamp, message, format, is_error) 
