@@ -32,8 +32,8 @@ class NodeRun(Base):
 
     node_path = sqlalchemy.Column(sqlalchemy.ARRAY(sqlalchemy.TEXT), index=True)
     start_time = sqlalchemy.Column(sqlalchemy.TIMESTAMP, nullable=False)
-    end_time = sqlalchemy.Column(sqlalchemy.TIMESTAMP, nullable=False)
-    succeeded = sqlalchemy.Column(sqlalchemy.BOOLEAN, nullable=False)
+    end_time = sqlalchemy.Column(sqlalchemy.TIMESTAMP, nullable=True)
+    succeeded = sqlalchemy.Column(sqlalchemy.BOOLEAN, nullable=True)
     is_pipeline = sqlalchemy.Column(sqlalchemy.BOOLEAN)
 
 
@@ -117,7 +117,7 @@ VALUES ({"%s, %s, %s, %s, %s, %s, %s, %s, %s"})''',
                 cursor.execute(f'''
 UPDATE data_integration_node_run 
 SET end_time={"%s"}, succeeded={"%s"}
-where node_run_id={"%s}''', (event.end_time, event.succeeded, self.node_run_id))
+where node_run_id={"%s"}''', (event.end_time, event.succeeded, self.node_run_id))
 
                 cursor.execute('''
 INSERT INTO data_integration_node_output (node_run_id, timestamp, message, format, is_error) 
