@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='data-integration',
-    version='1.1.0',
+    version='1.3.0',
 
     description='Opinionated lightweight ETL pipeline framework',
 
@@ -14,7 +14,8 @@ setup(
         'pythondialog>=3.4.0',
         'more-itertools>=3.1.0',
         'psutil>=5.4.0',
-        'wheel>=0.31'
+        'wheel>=0.31',
+        'requests>=2.19.1'
     ],
 
     dependency_links=[
